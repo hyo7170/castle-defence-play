@@ -9,7 +9,7 @@ window.createAtmosphere = function (config, canvas) {
   const snowing = state => window.calendarDate(config, monthIndex(state), state.year).weather === 'snow';
   // Draw a snow overlay over a piece of art, in the same frame, when it is a snowy month.
   window.snowRoof = function (ctx, state, src, left, top, width, height) {
-    if (!src || !snowing(state)) return;
+    if (!src || !snowing(state) || window.ASSETS.snow?.enabled === false) return;
     const image = window.assetImage(src);
     if (image) ctx.drawImage(image, left, top, width, height);
   };

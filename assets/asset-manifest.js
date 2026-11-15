@@ -1839,7 +1839,9 @@ window.ASSETS = {
   decisionPath: 'assets/decisions-v3/',
   // Snow lying on roofs in snowy months. Each overlay has the same frame as the art it covers.
   // Building overlays were drawn for one level only ("level"); other levels stay bare.
+  // Disabled 2026-11-15: the overlays do not line up with the roofs on screen. Set enabled: true to try again.
   snow: {
+    enabled: false,
     keep: 'assets/field/hope-unwired-v3/snow-keep.png',
     houses: ['assets/field/hope-unwired-v3/snow-house-1.png', 'assets/field/hope-unwired-v3/snow-house-2.png', 'assets/field/hope-unwired-v3/snow-house-3.png'],
     buildings: {
