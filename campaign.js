@@ -10,7 +10,7 @@
   // Everything worth keeping between sessions. Battle-only data is left out:
   // a game is saved while preparing, never in the middle of a fight.
   const KEEP = ['phase', 'wave', 'year', 'keep', 'walls', 'units', 'buildings', 'customPlots', 'resources', 'hope', 'research',
-    'decision', 'decisionLog', 'decisionSeed', 'capacityBonus', 'seed', 'kills', 'report', 'lastReward'];
+    'decision', 'decisionLog', 'decisionSeed', 'capacityBonus', 'inventory', 'lootCount', 'seed', 'kills', 'report', 'lastReward'];
   window.serializeGame = function (state) {
     if (!['ready', 'settlement', 'victory'].includes(state.phase)) return null;
     const data = {version: SAVE_VERSION};
@@ -39,10 +39,15 @@
       const state = JSON.parse(JSON.stringify(data));
       delete state.version;
       Object.assign(state, {year: state.year || 0, enemies: [], enemyDeaths: [], queue: [], timer: 0, combatRemainder: 0,
-        events: [], effects: [], kills: state.kills || 0, research: state.research || [], customPlots: state.customPlots || [], decisionLog: state.decisionLog || [],
+        events: [], effects: [], kills: state.kills || 0, research: state.research || [], customPlots: state.customPlots || [], inventory: (state.inventory || []).filter(id => config.items.some(i => i.id === id)), decisionLog: state.decisionLog || [],
         hope: Number.isFinite(state.hope) ? state.hope : config.hope.start});
       for (const wall of state.walls) wall.max = window.wallMaxHp(config, wall);
-      for (const unit of state.units) { unit.cool = 0; unit.retreat = null; unit.movement = null; }
+      for (const unit of state.units) {
+        unit.cool = 0; unit.retreat = null; unit.movement = null;
+        // One-item saves: the piece moves into its slot.
+        if (unit.item && !unit.gear) { const item = config.items.find(i => i.id === unit.item); if (item) unit.gear = {[item.slot]: item.id}; delete unit.item; }
+        if (unit.gear) for (const [slot, id] of Object.entries(unit.gear)) if (!config.items.some(i => i.id === id && i.slot === slot)) delete unit.gear[slot];
+      }
       return state;
     } catch { return null; }
   };

@@ -219,6 +219,7 @@ function updateCombat(state, config, dt) {
       start: state.timer, until: state.timer + config.combat.effectSeconds});
   }
   if (state.resources) window.rewardBattle(state,config,dead,false);
+  if (state.waveStats) state.waveStats.bosses = (state.waveStats.bosses || 0) + dead.filter(e => e.type === 'boss').length;
   const alive = state.enemies.filter(e => e.hp > 0);
   state.kills += state.enemies.length - alive.length;
   if (state.waveStats) state.waveStats.kills += state.enemies.length - alive.length;
@@ -238,6 +239,8 @@ function updateCombat(state, config, dt) {
     state.effects = [];
     // Holding the line kindles hope; holding it without losing a gate kindles more.
     window.changeHope?.(state, config, config.hope.waveCleared + (state.hopeWallsLost ? 0 : config.hope.flawless));
+    // Gear that pays out each month, and spoils from a fallen boss or a marked month.
+    const gear = window.gearAfterWave ? window.gearAfterWave(state, config, (state.waveStats?.bosses || 0) > 0) : null;
     if (state.waveStats) {
       const stats = state.waveStats;
       state.report = {wave: state.wave + 1, kills: stats.kills, gold: stats.gold,
@@ -245,7 +248,7 @@ function updateCombat(state, config, dt) {
         unitsLost: stats.units - state.units.filter(u => u.hp > 0).length,
         buildingsLost: stats.buildings - (state.buildings || []).filter(b => b.hp > 0 && !config.construction.buildings[b.type].trap).length,
         wallsLost: stats.walls - state.walls.filter(w => w.hp > 0).length,
-        hope: state.hope === undefined ? null : {from: state.hopeAtStart, to: state.hope}};
+        hope: state.hope === undefined ? null : {from: state.hopeAtStart, to: state.hope}, loot: gear?.loot || []};
     }
     if (state.phase === 'settlement') {
       window.refreshMercenaries?.(state, config);

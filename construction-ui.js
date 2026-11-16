@@ -37,7 +37,7 @@ window.createConstructionUI = function(canvas,config,getState,getView) {
     const building=state.buildings.find(b=>b.plotId===selected.id);
     const alive=state.units.filter(u=>u.hp>0 && !config.units[u.type].hero), capacity=window.troopCapacity(state,config);
     const heroes=window.hiredHeroes(state,config);
-    const key=[selected.id,selected.x,selected.y,chosen,deployLane,state.phase,state.wave,r.gold,r.wood,r.stone,building?.hp,building?.type,alive.length,capacity,building?.level,building?.rerolled,(building?.candidates||[]).join(),heroes.map(u=>u.type+(u.hp>0)+(u.item||'')).join(),(state.research||[]).join()].join(':');
+    const key=[selected.id,selected.x,selected.y,chosen,deployLane,state.phase,state.wave,r.gold,r.wood,r.stone,building?.hp,building?.type,alive.length,capacity,building?.level,building?.rerolled,(building?.candidates||[]).join(),heroes.map(u=>u.type+(u.hp>0)+JSON.stringify(u.gear||u.item||'')).join(),(state.research||[]).join(),(state.inventory||[]).join()].join(':');
     if(key===lastKey)return; lastKey=key;
     title.textContent=selected.draft?`${selected.zone.name} · 새 자리`:`${selected.id} · ${building?'건물 정보':'건설 부지'}`;
     cards.replaceChildren();
@@ -119,12 +119,15 @@ window.createConstructionUI = function(canvas,config,getState,getView) {
         };
         for(const r of list)add(`${r.name} · ${window.costText(r.cost)}`,`${r.name} 연구`,window.researchStatus(state,config,selected.id,r.id),
           ()=>window.doResearch(getState(),config,selected.id,r.id),r.text);
-        if(stats.forge)for(const unit of heroes)for(const item of config.items)
-          {add(`${config.units[unit.type].name}: ${item.name} · ${window.costText(item.cost)}`,`${config.units[unit.type].name} ${item.name} 제작`,
-            window.craftStatus(state,config,selected.id,item.id,unit.type),()=>window.craftItem(getState(),config,selected.id,item.id,unit.type),item.text);
-            const icon=window.ASSETS.items?.[item.id];
-            if(icon){const img=document.createElement('img');img.src=icon;img.alt='';img.className='item-icon';cards.lastChild.prepend(img);}}
-        if(stats.forge&&!heroes.length&&!notice.textContent)notice.textContent='영웅을 고용하면 여기서 장비를 만들 수 있습니다.';
+        if(stats.forge)for(const item of config.items.filter(i=>i.cost)){
+          // Forged gear goes to the store; heroes put it on from the hero menu.
+          const have=(state.inventory||[]).filter(id=>id===item.id).length;
+          add(`${item.name} · ${window.costText(item.cost)}`,`${item.name} 제작`,window.craftStatus(state,config,selected.id,item.id),
+            ()=>window.craftItem(getState(),config,selected.id,item.id),`${config.itemSlots[item.slot]} · ${item.text}${have?` · 보관 ${have}`:''}`);
+          const icon=window.ASSETS.items?.[item.id];
+          if(icon){const img=document.createElement('img');img.src=icon;img.alt='';img.className='item-icon';cards.lastChild.prepend(img);}
+        }
+        if(stats.forge&&!notice.textContent)notice.textContent='만든 장비는 보관함에 들어갑니다. 하단 영웅 메뉴에서 장착하세요.';
         manage();return;
       }
       if(stats.troopCapacity){

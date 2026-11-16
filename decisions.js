@@ -30,6 +30,7 @@
     if (option.wallHeal) parts.push(`가장 약한 성문 +${option.wallHeal}HP`);
     if (option.allWallsHeal) parts.push(`모든 성문 +${option.allWallsHeal}HP`);
     for (const type of option.recruits || []) parts.push(`${config.recruitment.names[type]} 합류`);
+    if (option.item) parts.push('장비 1개');
     return parts.join(' · ') || '변화 없음';
   };
 
@@ -51,6 +52,7 @@
     for (const [key, value] of Object.entries(option.resources || {})) state.resources[key] += value;
     if (option.hope) window.changeHope?.(state, config, option.hope);
     if (option.capacity) state.capacityBonus = (state.capacityBonus || 0) + option.capacity;
+    const found = option.item ? window.grantLoot(state, config, 'decision') : null;
     for (const unit of fallen(state, config).slice(0, option.revive || 0)) unit.hp = Math.round(config.units[unit.type].hp * 0.5);
     const standing = state.walls.filter(w => w.hp > 0);
     const heal = (wall, amount) => { wall.hp = Math.min(window.wallMaxHp(config, wall), wall.hp + amount); };
@@ -71,6 +73,7 @@
     state.decision = null;
     state.lastDecision = {id: event.id, option: index};
     const note = (option.recruits || []).length > joined ? ' (예비대가 가득 차 일부는 받지 못했습니다)' : '';
-    return {ok: true, reason: `${event.title} — ${option.label}: ${window.decisionEffectText(config, option)}${note}`};
+    const gained = found ? ` · ${config.items.find(i => i.id === found.id).name}을(를) 보관함에 넣었습니다` : '';
+    return {ok: true, reason: `${event.title} — ${option.label}: ${window.decisionEffectText(config, option)}${note}${gained}`, loot: found};
   };
 })();

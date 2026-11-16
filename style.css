@@ -82,3 +82,13 @@ body{background:#0d1220}#hud{background:#10151ce8}
 #minimap .mm-buttons,#minimap #zoom-controls{display:flex;gap:3px;margin-top:3px}#minimap button{flex:1;min-height:30px;min-width:0;padding:0 2px;font-size:11px}
 #minimap #zoom-controls{position:static;padding:0;background:none}
 @media(max-height:400px){#minimap{width:126px}#minimap-canvas{width:118px;height:88px}#minimap button{min-height:26px}}
+
+/* Hero gear: three slots per hero card, the store below. */
+.gear-slots{display:flex;gap:4px;margin-top:3px;flex-wrap:wrap}
+.gear-slot{display:flex;align-items:center;gap:4px;min-height:40px;padding:2px 6px;font-size:11px;max-width:118px;text-align:left}
+.gear-slot[aria-expanded="true"]{outline:2px solid #ffd76a}
+.gear-icon{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;flex:none;border:1px solid #6b6248;border-radius:3px;background:#11161d center/contain no-repeat;image-rendering:pixelated;font-style:normal;font-size:12px;color:#ffd76a}
+.gear-item{flex-direction:row;flex-wrap:wrap;align-items:center;gap:2px 6px;border:1px solid #4a4536;border-radius:5px;background:#1c2420}
+.gear-item small{width:100%}
+.gear-choices .menu-item{flex-direction:row;flex-wrap:wrap;align-items:center;gap:2px 6px}.gear-choices .menu-item small{width:100%}
+.hero-card .gear-slots{flex-direction:row}

@@ -40,7 +40,7 @@
     // Cheap fingerprint of everything a preparation phase can change.
     const signature = [state.year, state.wave, state.phase, state.hope, state.keep, state.decision, state.research.length,
       Object.values(state.resources).join(), state.buildings.map((b) => b.plotId + b.type + (b.level || 1) + Math.round(b.hp) + (b.charges ?? "")).join(),
-      state.walls.map((w) => Math.round(w.hp) + ":" + (w.level || 1)).join(), state.units.map((u) => u.type + u.wallId + Math.round(u.hp) + (u.item || "") + Math.round(u.x)).join()].join("|");
+      state.walls.map((w) => Math.round(w.hp) + ":" + (w.level || 1)).join(), state.units.map((u) => u.type + u.wallId + Math.round(u.hp) + JSON.stringify(u.gear || u.item || "") + Math.round(u.x)).join()].join("|");
     if (signature === savedSignature) return;
     savedSignature = signature;
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(window.serializeGame(state))); } catch { /* storage full or unavailable */ }
@@ -87,7 +87,7 @@
       decisionLog: [],
       research: [],
       seed: (Number(new URLSearchParams(location.search).get("seed")) || Date.now()) | 0,
-      buildings: [], customPlots: [],
+      buildings: [], customPlots: [], inventory: [],
     };
     const compact = canvas.getBoundingClientRect().height <= C.camera.compactStart.maxHeight;
     const initialCamera = compact ? C.camera.compactStart : C.camera.start;
@@ -188,6 +188,7 @@
     const summary = report
       ? `${window.calendarDate(C, report.wave - 1, state.year).text} · ${report.wave}웨이브 방어 성공!\n처치 ${report.kills} · 처치 보상 +${report.gold}G` +
         (report.reward ? `\n보급 +${report.reward.gold}G · 목재 +${report.reward.wood} · 석재 +${report.reward.stone}` : "") +
+        (report.loot?.length ? `\n전리품 — ${report.loot.map(l => C.items.find(i => i.id === l.id).name).join(", ")} (영웅 메뉴의 보관함)` : "") +
         `\n손실 — 병사 ${report.unitsLost} · 건물 ${report.buildingsLost} · 성벽 ${report.wallsLost}\n${wallLine}\n${report.hope ? `희망 ${Math.round(report.hope.from)} → ${Math.round(report.hope.to)} (${window.hopeTier(C, report.hope.to).name}) · ` : ""}생존 병력과 성벽이 일부 회복됐습니다.`
       : "웨이브 방어 성공!\n생존 병력과 성벽이 일부 회복됐습니다.";
     text("#message", {

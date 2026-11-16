@@ -624,12 +624,31 @@ window.CONFIG.research = {
     {"id": "ballistics", "name": "탄도학", "text": "궁수탑과 전진기지의 피해 +25%", "cost": {"gold": 180, "wood": 50}, "effect": {"towerDamage": 1.25}}
   ]
 };
-// Hero gear forged at the smithy: one item per hero.
+// Hero gear: three slots per hero. Items with a cost are forged at the smithy; the rest are found
+// (bosses, marked months, the lord's decisions). Effects: damage/armor multiply, cooldown (seconds off),
+// hopePerWave, goldPerWave, healPerWave (fraction of max HP when a month is held) add up.
 window.CONFIG.items = [
-  {"id": "runeblade", "name": "룬 검", "text": "공격 +30%", "cost": {"gold": 160, "stone": 30}, "effect": {"damage": 1.3}},
-  {"id": "scalemail", "name": "용린 갑옷", "text": "받는 피해 −30%", "cost": {"gold": 160, "stone": 40}, "effect": {"armor": 0.7}},
-  {"id": "windcharm", "name": "바람 부적", "text": "스킬 대기 −12초", "cost": {"gold": 140, "wood": 40}, "effect": {"cooldown": 12}}
+  {"id": "runeblade", "slot": "weapon", "name": "룬 검", "text": "공격 +30%", "cost": {"gold": 160, "stone": 30}, "effect": {"damage": 1.3}},
+  {"id": "frostDagger", "slot": "weapon", "name": "서리 단검", "text": "공격 +20% · 스킬 대기 −6초", "effect": {"damage": 1.2, "cooldown": 6}},
+  {"id": "thunderBow", "slot": "weapon", "name": "천둥 활", "text": "공격 +45%", "effect": {"damage": 1.45}},
+  {"id": "emberStaff", "slot": "weapon", "name": "성화의 지팡이", "text": "공격 +25% · 달마다 희망 +2", "effect": {"damage": 1.25, "hopePerWave": 2}},
+  {"id": "scalemail", "slot": "armor", "name": "용린 갑옷", "text": "받는 피해 −30%", "cost": {"gold": 160, "stone": 40}, "effect": {"armor": 0.7}},
+  {"id": "pilgrimCloak", "slot": "armor", "name": "순례자의 망토", "text": "받는 피해 −15% · 스킬 대기 −5초", "cost": {"gold": 120, "wood": 40}, "effect": {"armor": 0.85, "cooldown": 5}},
+  {"id": "wallShield", "slot": "armor", "name": "성벽 방패", "text": "받는 피해 −40%", "effect": {"armor": 0.6}},
+  {"id": "windcharm", "slot": "trinket", "name": "바람 부적", "text": "스킬 대기 −12초", "cost": {"gold": 140, "wood": 40}, "effect": {"cooldown": 12}},
+  {"id": "wolfFang", "slot": "trinket", "name": "늑대 이빨 목걸이", "text": "공격 +12%", "cost": {"gold": 100, "wood": 20}, "effect": {"damage": 1.12}},
+  {"id": "hopeLantern", "slot": "trinket", "name": "희망의 등불", "text": "달마다 희망 +3", "effect": {"hopePerWave": 3}},
+  {"id": "royalSeal", "slot": "trinket", "name": "왕의 인장", "text": "달마다 골드 +40", "effect": {"goldPerWave": 40}},
+  {"id": "holyWater", "slot": "trinket", "name": "치유의 성수", "text": "달을 막을 때마다 HP 30% 회복", "effect": {"healPerWave": 0.3}}
 ];
+window.CONFIG.itemSlots = {"weapon": "무기", "armor": "갑옷", "trinket": "장신구"};
+// Found gear: a piece when a boss falls, and on these months.
+window.CONFIG.loot = {"waves": [3, 6, 9], "pool": ["frostDagger", "thunderBow", "emberStaff", "wallShield", "hopeLantern", "royalSeal", "holyWater"]};
+window.CONFIG.decisions.push(
+  {"id": "armory", "title": "무너진 초소의 무기고", "text": "순찰대가 버려진 초소에서 잠긴 무기고를 찾았습니다.",
+    "options": [{"label": "장비를 챙긴다", "item": true}, {"label": "자재를 뜯어 온다", "resources": {"wood": 60, "stone": 40}}]},
+  {"id": "smith", "title": "떠돌이 대장장이", "text": "북쪽에서 온 대장장이가 묵을 곳을 대가로 일을 하겠다고 합니다.",
+    "options": [{"label": "일을 맡긴다", "resources": {"gold": -100}, "item": true}, {"label": "재워 보낸다", "hope": 3}]});
 // ---- The continuing campaign: each year held makes the next one harder ----
 window.CONFIG.campaign = {
   "yearScaling": {"hp": 0.3, "damage": 0.2, "count": 0.1},

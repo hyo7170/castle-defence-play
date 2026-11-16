@@ -64,17 +64,37 @@ window.createMenuUI = function (config, getState, cam, getView, ui, toast) {
     }
   }
 
+  // Heroes: each card has three gear slots; tapping a slot lists what the store holds for it.
+  let slotOpen = null;
+  const itemOf = id => config.items.find(i => i.id === id);
+  function itemIcon(item) {
+    const i = el('i', {className: 'gear-icon'}), src = item && window.ASSETS.items?.[item.id];
+    if (src) i.style.backgroundImage = `url("${src}")`; else i.textContent = item ? item.name[0] : '';
+    return i;
+  }
+  function inventoryList(state) {
+    const store = state.inventory || [];
+    body.append(el('span', {className: 'army-label', textContent: `보관함 ${store.length}`}));
+    if (!store.length) { body.append(el('p', {className: 'menu-hint', textContent: '장비는 대장간에서 만들거나, 보스를 쓰러뜨리거나 3·6·9월을 막아내면, 또는 영주의 결단으로 얻습니다.'})); return; }
+    const grid = el('div', {className: 'menu-grid'}); body.append(grid);
+    const counts = {}; for (const id of store) counts[id] = (counts[id] || 0) + 1;
+    for (const [id, n] of Object.entries(counts)) {
+      const item = itemOf(id), b = el('div', {className: 'menu-item gear-item'});
+      b.append(itemIcon(item), el('span', {textContent: `${item.name}${n > 1 ? ` ×${n}` : ''}`}), el('small', {textContent: `${config.itemSlots[item.slot]} · ${item.text}`}));
+      grid.append(b);
+    }
+  }
   function heroesMenu(state) {
     const heroes = window.hiredHeroes(state, config), limit = window.heroLimit(state, config);
     title.textContent = `영웅 ${heroes.length}/${limit}`;
-    if (!state.buildings.some(b => b.type === 'mercenary' && b.hp > 0)) {
+    if (!state.buildings.some(b => b.type === 'mercenary' && b.hp > 0) && !heroes.length) {
       body.append(el('p', {className: 'menu-hint', textContent: '용병소를 지으면 영웅 후보가 나타나고 고용할 수 있습니다. 용병소는 본부 부지에 짓습니다.'}));
       row(body, '용병소 짓기', '용병소 짓기', '본부 부지가 빛납니다', {ok: ['ready', 'settlement'].includes(state.phase)}, () => { ui.construction.pickType('mercenary'); hide(); toast('용병소: 빛나는 부지를 누르세요'); });
-      return;
+      inventoryList(state); return;
     }
     if (!heroes.length) body.append(el('p', {className: 'menu-hint', textContent: '아직 고용한 영웅이 없습니다. 전장의 용병소를 눌러 후보를 고용하세요.'}));
     for (const unit of heroes) {
-      const hero = config.units[unit.type], item = config.items.find(i => i.id === unit.item);
+      const hero = config.units[unit.type], gear = window.heroGear(config, unit);
       const card = el('div', {className: 'hero-card'});
       const face = el('i', {className: 'portrait'}), art = window.ASSETS.units[unit.type];
       if (art?.portrait) { face.style.backgroundImage = `url("${art.portrait}")`; face.style.backgroundSize = 'cover'; }
@@ -82,10 +102,32 @@ window.createMenuUI = function (config, getState, cam, getView, ui, toast) {
       const text = el('div');
       text.append(el('strong', {textContent: `${hero.name} · ${config.mercenary.gradeNames[hero.grade] || ''}`}),
         el('span', {textContent: unit.hp > 0 ? `HP ${Math.ceil(unit.hp)}/${hero.hp} · ${config.orders.laneNames[unit.lane] || ''}` : '전투불능 — 용병소에서 부활'}),
-        el('small', {textContent: `${hero.skill.name}: ${hero.skill.text}`}),
-        el('small', {textContent: item ? `장비: ${item.name} (${item.text})` : '장비 없음 — 대장간에서 제작'}));
-      card.append(face, text); body.append(card);
+        el('small', {textContent: `${hero.skill.name}: ${hero.skill.text}`}));
+      const slots = el('div', {className: 'gear-slots'});
+      for (const [slot, slotName] of Object.entries(config.itemSlots)) {
+        const item = itemOf(gear[slot]), b = el('button', {className: 'gear-slot'});
+        b.setAttribute('aria-label', `${hero.name} ${slotName} 칸`);
+        b.setAttribute('aria-expanded', String(slotOpen?.hero === unit.type && slotOpen?.slot === slot));
+        b.append(itemIcon(item), el('span', {textContent: item ? item.name : `${slotName} 없음`}));
+        b.onclick = () => { slotOpen = slotOpen?.hero === unit.type && slotOpen?.slot === slot ? null : {hero: unit.type, slot}; lastKey = ''; update(); };
+        slots.append(b);
+      }
+      text.append(slots); card.append(face, text); body.append(card);
+      if (slotOpen?.hero === unit.type) {
+        // What can go into the chosen slot, and taking the current piece off.
+        const grid = el('div', {className: 'menu-grid gear-choices'}); body.append(grid);
+        const here = itemOf(gear[slotOpen.slot]), run = result => { toast(result.reason); lastKey = ''; update(); };
+        if (here) row(grid, `${here.name} 빼기`, `${hero.name} ${here.name} 빼기`, '보관함으로', window.unequipStatus(state, config, unit.type, slotOpen.slot),
+          () => run(window.unequipItem(getState(), config, unit.type, slotOpen.slot)));
+        const options = [...new Set((state.inventory || []).filter(id => itemOf(id)?.slot === slotOpen.slot))];
+        for (const id of options) {
+          const item = itemOf(id), status = window.equipStatus(state, config, unit.type, id);
+          row(grid, `${item.name} 장착`, `${hero.name} ${item.name} 장착`, item.text, status, () => run(window.equipItem(getState(), config, unit.type, id))).prepend(itemIcon(item));
+        }
+        if (!options.length) grid.append(el('p', {className: 'menu-hint', textContent: `보관함에 넣을 ${config.itemSlots[slotOpen.slot]} 장비가 없습니다.${config.items.some(i => i.cost && i.slot === slotOpen.slot) ? ' 대장간에서 만들 수 있습니다.' : ''}`}));
+      }
     }
+    inventoryList(state);
   }
 
   function researchMenu(state) {
@@ -112,7 +154,7 @@ window.createMenuUI = function (config, getState, cam, getView, ui, toast) {
     if (panel.hidden) return;
     const state = getState();
     const key = JSON.stringify([open, state.phase, state.resources, state.buildings.map(b => [b.plotId, b.type, b.hp > 0]), state.research,
-      window.hiredHeroes(state, config).map(u => [u.type, Math.ceil(u.hp), u.item, u.lane])]);
+      window.hiredHeroes(state, config).map(u => [u.type, Math.ceil(u.hp), u.gear || u.item, u.lane]), state.inventory, slotOpen]);
     if (key === lastKey) return; lastKey = key;
     body.replaceChildren();
     ({build: buildMenu, heroes: heroesMenu, research: researchMenu})[open](state);
