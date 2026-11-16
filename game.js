@@ -18,6 +18,7 @@
     constructionUI,
     ordersUI,
     heroUI,
+    menuInstance,
     automaticallyPaused = false,
     scoutOpen = false,
     reportClosed = false,
@@ -227,6 +228,7 @@
     constructionUI?.update();
     ordersUI?.update();
     heroUI?.update();
+    menuInstance?.update();
     updateGuide();
     // After a year is held the campaign goes on; after a fall the month can be tried again from the last save.
     const next = $("#campaign-next"), retry = state.phase === "defeat" && persistent && readSaveCached();
@@ -662,6 +664,8 @@
   constructionUI.update();
   ordersUI=window.createArmyUI(C,()=>state,()=>constructionUI.close(),canvas,view,(m)=>toast(m));
   heroUI = window.createHeroUI(C, () => state);
+  const menuUI = window.createMenuUI(C, () => state, cam, view, {construction: constructionUI, army: ordersUI}, (m) => toast(m));
+  menuInstance = menuUI;
   if (window.ASSETS.hopeIcon) { $("#hope").classList.add("has-icon"); $("#hope").style.setProperty("--icon", `url("${window.ASSETS.hopeIcon}")`); }
   if (resumed) { adopt(resumed); toast(`이어서 합니다 — ${window.calendarDate(C, state.wave, state.year).text}`); }
   if (new URLSearchParams(location.search).has("debug"))

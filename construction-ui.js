@@ -1,5 +1,5 @@
 window.createConstructionUI = function(canvas,config,getState,getView) {
-  let selected=null, chosen=null, lastKey='', deployLane='south', armed=null;
+  let selected=null, chosen=null, lastKey='', deployLane='south', armed=null, picking=null;
   const resources=document.createElement('span'); resources.id='resources';
   document.querySelector('#hud').insertBefore(resources,document.querySelector('#keep'));
   const panel=document.createElement('section');panel.id='construction-panel';panel.hidden=true;
@@ -12,7 +12,10 @@ window.createConstructionUI = function(canvas,config,getState,getView) {
   const confirm=document.createElement('button');confirm.textContent='건설 확정';
   const notice=document.createElement('p');notice.setAttribute('role','status');notice.setAttribute('aria-live','polite');
   panel.append(header,info,cards,confirm,notice);document.body.append(panel);
-  function close(){selected=null;chosen=null;armed=null;lastKey='';panel.hidden=true;notice.textContent='';}
+  function close(){selected=null;chosen=null;armed=null;picking=null;lastKey='';panel.hidden=true;notice.textContent='';}
+  // Build menu: choose a building first, then the plots that can take it light up.
+  const eligible=(state,type)=>config.construction.plots.filter(p=>p.allowed.includes(type)&&!state.buildings.some(b=>b.plotId===p.id));
+  function pickType(type){close();picking=type;return eligible(getState(),type);}
   closeButton.onclick=close;
   function update() {
     const state=getState(), r=state.resources;
@@ -179,7 +182,7 @@ window.createConstructionUI = function(canvas,config,getState,getView) {
       rect.top+(plot.y-v.y)*rect.height/v.h-event.clientY)}))
       .filter(p=>p.distance<=radius).sort((a,b)=>a.distance-b.distance)[0];
     if(!hit)return;
-    armed=null;selected=hit.plot;chosen=selected.allowed.find(type=>config.construction.buildings[type]);
+    armed=null;selected=hit.plot;chosen=picking&&selected.allowed.includes(picking)?picking:selected.allowed.find(type=>config.construction.buildings[type]);picking=null;
     deployLane=config.lanes[selected.lane]?selected.lane:'south';
     notice.textContent='';lastKey='';panel.hidden=false;update();
     document.dispatchEvent(new Event('construction-opened'));
@@ -206,6 +209,10 @@ window.createConstructionUI = function(canvas,config,getState,getView) {
         // Field sites on the roads are smaller and only shown while preparing, so the lanes stay readable in battle.
         if(plot.field&&!open){ctx.globalAlpha=1;continue;}
         const half=plot.field?19:24;
+        if(picking&&open){   // the chosen building's plots glow, the rest fade back
+          if(plot.allowed.includes(picking)){const pulse=0.55+0.45*Math.sin(performance.now()/180);ctx.save();ctx.globalAlpha=pulse;ctx.strokeStyle='#ffd76a';ctx.lineWidth=5;ctx.strokeRect(plot.x-half-6,plot.y-half-6,half*2+12,half*2+12);ctx.restore();}
+          else ctx.globalAlpha=.3;
+        }
         ctx.fillStyle=selected?.id===plot.id?'#bdb07b':plot.field?'#5d4a3acc':'#726c4d';
         ctx.fillRect(plot.x-half,plot.y-half,half*2,half*2);ctx.strokeStyle=open?(plot.field?'#ffb84d':'#ffe9a8'):'#d1c398';ctx.setLineDash([5,4]);
         ctx.strokeRect(plot.x-half,plot.y-half,half*2,half*2);ctx.setLineDash([]);
@@ -263,5 +270,5 @@ window.createConstructionUI = function(canvas,config,getState,getView) {
     }
     ctx.restore();
   }
-  return {update,draw,drawLabels,drawBuilding,buildingBase,close};
+  return {update,draw,drawLabels,drawBuilding,buildingBase,close,pickType,eligible:type=>eligible(getState(),type),get picking(){return picking;},cancelPick(){picking=null;}};
 };

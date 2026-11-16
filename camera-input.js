@@ -42,8 +42,6 @@ window.installCameraInput = function (canvas, cam, view, limits) {
   panel.id = 'zoom-controls';
   panel.setAttribute('aria-label', '지도 확대 축소');
   const buttons = [
-    ['−', '지도 축소', () => cam.zoom /= limits.zoomStep],
-    ['+', '지도 확대', () => cam.zoom *= limits.zoomStep],
     ['넓게', '넓은 전장 보기', () => { cam.zoom = limits.minZoom; }],
     ['기본', '기본 배율로 복귀', () => { cam.zoom = limits.zoom; }]
   ];
@@ -58,10 +56,6 @@ window.installCameraInput = function (canvas, cam, view, limits) {
     };
     panel.append(button);
   }
-  const toggle = document.createElement('button');
-  toggle.textContent = '배율';
-  toggle.setAttribute('aria-expanded','false');
-  panel.hidden = true;
-  toggle.onclick = () => { panel.hidden = !panel.hidden; toggle.setAttribute('aria-expanded', String(!panel.hidden)); };
-  document.querySelector('#controls').append(toggle, panel);
+  // Zoom buttons sit under the minimap; pinch and the mouse wheel also zoom.
+  (document.querySelector('#minimap') || document.querySelector('#controls')).append(panel);
 };

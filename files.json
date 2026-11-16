@@ -18,6 +18,7 @@
  "heroes-ui.js",
  "army.js",
  "army-ui.js",
+ "menu-ui.js",
  "research.js",
  "decisions.js",
  "campaign.js",
