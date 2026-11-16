@@ -62,7 +62,7 @@
     toastUntil = 0;
     lastKeep = C.keep.hp;
     constructionUI?.close();
-    ordersUI?.close();
+    ordersUI?.reset?.();
     state = {
       phase: "ready",
       wave: 0,
@@ -660,7 +660,7 @@
   window.installCameraInput(canvas, cam, view, C.world);
   constructionUI=window.createConstructionUI(canvas,C,()=>state,view);
   constructionUI.update();
-  ordersUI=window.createOrdersUI(C,()=>state,()=>constructionUI.close(),canvas,view);
+  ordersUI=window.createArmyUI(C,()=>state,()=>constructionUI.close(),canvas,view,(m)=>toast(m));
   heroUI = window.createHeroUI(C, () => state);
   if (window.ASSETS.hopeIcon) { $("#hope").classList.add("has-icon"); $("#hope").style.setProperty("--icon", `url("${window.ASSETS.hopeIcon}")`); }
   if (resumed) { adopt(resumed); toast(`이어서 합니다 — ${window.calendarDate(C, state.wave, state.year).text}`); }

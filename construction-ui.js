@@ -125,24 +125,8 @@ window.createConstructionUI = function(canvas,config,getState,getView) {
         manage();return;
       }
       if(stats.troopCapacity){
-        info.textContent+=` · 병력 ${alive.length}/${capacity} · 전선 ${config.recruitment.laneCapacity}/예비대 ${config.orders.reserveCapacity}명`;
-        cards.classList.add('recruitment-cards');
-        for(const lane of config.recruitment.lanes){
-          const button=document.createElement('button');button.textContent=`${config.orders.laneNames[lane]} 배치`;
-          button.setAttribute('aria-pressed',String(deployLane===lane));
-          button.onclick=()=>{deployLane=lane;notice.textContent='';update()};cards.append(button);
-        }
-        const reasons=[];
-        for(const type of config.recruitment.types){
-          const status=window.recruitmentStatus(state,config,selected.id,type,deployLane);
-          const button=document.createElement('button');
-          button.textContent=`${config.recruitment.names[type]} 생산 · ${config.units[type].cost}G`;
-          button.setAttribute('aria-label',`${config.recruitment.names[type]} 생산`);
-          button.disabled=!status.ok;button.title=status.reason;
-          button.onclick=()=>{const result=window.recruitUnit(getState(),config,selected.id,type,deployLane);notice.textContent=result.reason;lastKey='';update()};
-          cards.append(button);if(!status.ok)reasons.push(status.reason);
-        }
-        if(reasons.length)notice.textContent=[...new Set(reasons)].join(' ');
+        // Barracks raise the troop limit; troops are trained from the army panel.
+        info.textContent+=` · 병력 한도 +${stats.troopCapacity} (지금 ${alive.length}/${capacity}) · 병사는 하단 '병력'에서 뽑습니다`;
       }
       manage();return;
     }
@@ -162,7 +146,7 @@ window.createConstructionUI = function(canvas,config,getState,getView) {
       stats.trap?(stats.trap.radius?`밟으면 폭발: 반경 ${stats.trap.radius}에 피해 ${stats.trap.damage} · 1회용`:`지나가는 적에게 피해 ${stats.trap.damage}와 ${stats.trap.slowSeconds}초 둔화 · ${stats.trap.charges}회`):
       stats.blocks&&!stats.damage?`적이 부숴야 지나갑니다 · HP ${stats.hp}`:
       stats.blocks?`길을 막고 화살을 쏩니다 · HP ${stats.hp} · 공격 ${stats.damage}, 사거리 ${stats.range}`:
-      stats.troopCapacity?`병력 한도 +${stats.troopCapacity} · 보병·궁수·마법사 생산`:
+      stats.troopCapacity?`병력 한도 +${stats.troopCapacity}`:
       chosen==='mercenary'?'영웅 후보 공개 및 고용 · 스킬은 전투 중 직접 사용':
       stats.income?`웨이브마다 ${Object.entries(stats.income).map(([k,v])=>`${{gold:'골드',wood:'목재',stone:'석재'}[k]} +${v}`).join(' · ')}`:
       stats.heal?`정산 때 병력 HP ${Math.round(stats.heal*100)}% 추가 회복`:
