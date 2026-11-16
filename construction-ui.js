@@ -14,7 +14,7 @@ window.createConstructionUI = function(canvas,config,getState,getView) {
   panel.append(header,info,cards,confirm,notice);document.body.append(panel);
   function close(){selected=null;chosen=null;armed=null;picking=null;lastKey='';panel.hidden=true;notice.textContent='';}
   // Build menu: choose a building first, then the plots that can take it light up.
-  const eligible=(state,type)=>config.construction.plots.filter(p=>p.allowed.includes(type)&&!state.buildings.some(b=>b.plotId===p.id));
+  const eligible=(state,type)=>window.plotList(state,config).filter(p=>p.allowed.includes(type)&&!state.buildings.some(b=>b.plotId===p.id));
   function pickType(type){close();picking=type;return eligible(getState(),type);}
   closeButton.onclick=close;
   function update() {
@@ -37,9 +37,9 @@ window.createConstructionUI = function(canvas,config,getState,getView) {
     const building=state.buildings.find(b=>b.plotId===selected.id);
     const alive=state.units.filter(u=>u.hp>0 && !config.units[u.type].hero), capacity=window.troopCapacity(state,config);
     const heroes=window.hiredHeroes(state,config);
-    const key=[selected.id,chosen,deployLane,state.phase,state.wave,r.gold,r.wood,r.stone,building?.hp,building?.type,alive.length,capacity,building?.level,building?.rerolled,(building?.candidates||[]).join(),heroes.map(u=>u.type+(u.hp>0)+(u.item||'')).join(),(state.research||[]).join()].join(':');
+    const key=[selected.id,selected.x,selected.y,chosen,deployLane,state.phase,state.wave,r.gold,r.wood,r.stone,building?.hp,building?.type,alive.length,capacity,building?.level,building?.rerolled,(building?.candidates||[]).join(),heroes.map(u=>u.type+(u.hp>0)+(u.item||'')).join(),(state.research||[]).join()].join(':');
     if(key===lastKey)return; lastKey=key;
-    title.textContent=`${selected.id} · ${building?'건물 정보':'건설 부지'}`;
+    title.textContent=selected.draft?`${selected.zone.name} · 새 자리`:`${selected.id} · ${building?'건물 정보':'건설 부지'}`;
     cards.replaceChildren();
     cards.classList.remove('recruitment-cards','mercenary-cards');panel.classList.remove('wide');
     confirm.hidden=Boolean(building);
@@ -159,8 +159,18 @@ window.createConstructionUI = function(canvas,config,getState,getView) {
     if(!preparing) notice.textContent='건설은 준비 단계에서만 가능합니다.';
     else if(!affordable) notice.textContent='자원이 부족합니다.';
     else notice.textContent='';
+    if(selected.draft){
+      const status=window.placementStatus(state,config,chosen,selected.x,selected.y);
+      if(!status.ok){confirm.disabled=true;notice.textContent=`${status.reason} 마당의 다른 곳을 눌러 보세요.`;}
+      else if(preparing&&affordable)notice.textContent='이 자리에 짓습니다. 다른 곳을 누르면 자리가 옮겨집니다.';
+    }
   }
   confirm.onclick=()=>{
+    if(selected.draft){
+      const result=window.placeBuilding(getState(),config,chosen,selected.x,selected.y);
+      if(result.ok){selected=window.findPlot(getState(),config,result.plotId);picking=null;}
+      notice.textContent=result.reason;lastKey='';update();return;
+    }
     const result=window.buildOnPlot(getState(),config,selected.id,chosen);
     notice.textContent=result.reason;lastKey='';update();
   };
@@ -177,11 +187,23 @@ window.createConstructionUI = function(canvas,config,getState,getView) {
     if(!candidate||candidate.id!==event.pointerId||active.size)return;
     const rect=canvas.getBoundingClientRect(),v=getView();
     const radius=Math.max(config.construction.minTapSize/2,config.construction.plotRadius*rect.height/v.h);
-    const hit=config.construction.plots.map(plot=>({plot,distance:Math.hypot(
+    const hit=window.plotList(getState(),config).map(plot=>({plot,distance:Math.hypot(
       rect.left+(plot.x-v.x)*rect.width/v.w-event.clientX,
       rect.top+(plot.y-v.y)*rect.height/v.h-event.clientY)}))
-      .filter(p=>p.distance<=radius).sort((a,b)=>a.distance-b.distance)[0];
-    if(!hit)return;
+      .filter(p=>p.distance<=radius&&(!picking||p.plot.allowed.includes(picking)||getState().buildings.some(b=>b.plotId===p.plot.id)))
+      .sort((a,b)=>a.distance-b.distance)[0];
+    if(!hit){
+      // While a building is being placed, a tap inside its zone opens a new site right there.
+      if(!picking)return;
+      const world={x:v.x+(event.clientX-rect.left)*v.w/rect.width,y:v.y+(event.clientY-rect.top)*v.h/rect.height};
+      const status=window.placementStatus(getState(),config,picking,world.x,world.y);
+      if(!status.zone)return;
+      armed=null;chosen=picking;
+      selected={id:'새 부지',draft:true,x:status.x,y:status.y,lane:status.zone.lane,zone:status.zone,allowed:[picking]};
+      notice.textContent='';lastKey='';panel.hidden=false;update();
+      document.dispatchEvent(new Event('construction-opened'));
+      return;
+    }
     armed=null;selected=hit.plot;chosen=picking&&selected.allowed.includes(picking)?picking:selected.allowed.find(type=>config.construction.buildings[type]);picking=null;
     deployLane=config.lanes[selected.lane]?selected.lane:'south';
     notice.textContent='';lastKey='';panel.hidden=false;update();
@@ -198,7 +220,7 @@ window.createConstructionUI = function(canvas,config,getState,getView) {
       ctx.beginPath();ctx.arc(selected.x,selected.y,config.construction.buildings[previewType].range,0,Math.PI*2);
       ctx.fillStyle='#c9d99818';ctx.fill();ctx.strokeStyle='#c9d998';ctx.stroke();
     }
-    for(const plot of config.construction.plots){
+    for(const plot of window.plotList(state,config)){
       const building=state.buildings.find(b=>b.plotId===plot.id);
       ctx.textAlign='center';ctx.font='bold 15px sans-serif';
       if(!building){
@@ -260,7 +282,33 @@ window.createConstructionUI = function(canvas,config,getState,getView) {
   }
   // Y of the building's base line, used for depth sorting.
   function buildingBase(building){const art=window.ASSETS.buildings[building.type];return building.y+(art?.foot??14);}
+  // Zones and the new-site ghost go above the scene and the night, so they read clearly.
+  function drawPlacement(ctx){
+    const state=getState();ctx.save();
+    const zoneType=picking||(selected?.draft&&chosen);
+    if(zoneType&&['ready','settlement'].includes(state.phase)){
+      // The zones that take the chosen building glow; the building can go anywhere inside.
+      const pulse=0.75+0.25*Math.sin(performance.now()/220);
+      for(const z of window.zonesFor(config,zoneType)){
+        const pad=26;ctx.fillStyle='#ffd76a22';ctx.fillRect(z.x-pad,z.y-pad,z.w+pad*2,z.h+pad*2);
+        ctx.save();ctx.globalAlpha=pulse;ctx.strokeStyle='#ffd76a';ctx.lineWidth=5;ctx.setLineDash([14,8]);
+        ctx.strokeRect(z.x-pad,z.y-pad,z.w+pad*2,z.h+pad*2);ctx.restore();
+        ctx.fillStyle='#fff1cd';ctx.font='bold 18px sans-serif';ctx.textAlign='left';ctx.fillText(z.name,z.x-pad+6,z.y-pad+16);
+      }
+    }
+    if(selected?.draft){
+      // The new site: where the building would stand, green if it fits.
+      const ok=window.placementStatus(state,config,chosen,selected.x,selected.y).ok;
+      const w=(config.construction.placement.footprint[chosen]||config.construction.placement.footprint.default);
+      ctx.fillStyle=ok?'#7fd08a44':'#e0605044';ctx.fillRect(selected.x-w/2,selected.y-27,w,54);
+      ctx.strokeStyle=ok?'#9fe0a8':'#f08070';ctx.lineWidth=3;ctx.strokeRect(selected.x-w/2,selected.y-27,w,54);ctx.lineWidth=1;
+      const art=window.ASSETS.buildings[chosen], image=art&&window.assetImage(art.levels[0]);
+      if(image){ctx.globalAlpha=.6;ctx.drawImage(image,selected.x-art.width/2,selected.y+(art.foot??14)-art.height,art.width,art.height);ctx.globalAlpha=1;}
+    }
+    ctx.restore();
+  }
   function drawLabels(ctx){
+    drawPlacement(ctx);
     ctx.save();ctx.textAlign='center';ctx.font='bold 15px sans-serif';
     for(const building of getState().buildings){
       const text=`${building.plotId} ${config.construction.buildings[building.type].name}${building.hp<=0?' (파괴)':''}`;

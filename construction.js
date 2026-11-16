@@ -1,7 +1,7 @@
 window.buildOnPlot = function(state, config, plotId, type) {
   const fail = reason => ({ok:false,reason});
   if (!['ready','settlement'].includes(state.phase)) return fail('건설은 준비 단계에서만 가능합니다.');
-  const plot = config.construction.plots.find(p=>p.id===plotId);
+  const plot = window.findPlot(state, config, plotId);
   const stats = config.construction.buildings[type];
   if (!plot || !stats || !plot.allowed.includes(type)) return fail('이 부지에는 건설할 수 없습니다.');
   if (stats.unique && (state.buildings || []).some(b=>b.type===type)) return fail(`${stats.name}은(는) 하나만 지을 수 있습니다.`);
@@ -190,6 +190,64 @@ window.buildingAction = function(state,config,plotId,action){
   }
   for(const [key,value] of Object.entries(status.refund))state.resources[key]+=value;
   state.buildings=state.buildings.filter(b=>b!==building);
+  window.dropEmptyCustomPlots(state);
   const text=Object.entries(status.refund).filter(([,value])=>value).map(([key,value])=>`${{gold:'골드',wood:'목재',stone:'석재'}[key]} ${value}`).join(' · ');
   return {ok:true,reason:`${base.name} 철거${text?` · 반환 ${text}`:''}`};
 };
+
+// Free placement inside zones: a building can go anywhere in a zone that takes it,
+// snapped to a grid and kept clear of roads, the keep, houses and other plots. Rules only.
+(() => {
+  // Every site: the fixed plots plus those the player has opened in the zones.
+  window.plotList = (state, config) => [...config.construction.plots, ...(state?.customPlots || [])];
+  window.findPlot = (state, config, id) => window.plotList(state, config).find(p => p.id === id);
+
+  const inside = (r, x, y, pad = 0) => x >= r.x - pad && x <= r.x + r.w + pad && y >= r.y - pad && y <= r.y + r.h + pad;
+  window.zonesFor = (config, type) => (config.construction.zones || []).filter(z => z.allowed.includes(type));
+
+  // Where a tap at (x, y) would put this building, and whether it may go there.
+  window.placementStatus = function (state, config, type, x, y) {
+    const rules = config.construction.placement, stats = config.construction.buildings[type];
+    const fail = (reason, extra) => ({ok: false, reason, ...extra});
+    if (!stats) return fail('알 수 없는 건물입니다.');
+    if (!['ready', 'settlement'].includes(state.phase)) return fail('건설은 준비 단계에서만 가능합니다.');
+    const g = rules.grid; x = Math.round(x / g) * g; y = Math.round(y / g) * g;
+    const zone = window.zonesFor(config, type).find(z => inside(z, x, y));
+    if (!zone) return fail(`${stats.name}은(는) 빛나는 구역 안에만 지을 수 있습니다.`, {x, y});
+    if (config.field.roads.some(r => inside(r, x, y, rules.roadClearance))) return fail('길 위에는 지을 수 없습니다.', {x, y, zone});
+    const k = config.keep.body;
+    if (inside(k, x, y, rules.keepClearance)) return fail('본관에 너무 가깝습니다.', {x, y, zone});
+    if (config.walls.some(w => Math.hypot(w.x - x, w.y - y) < rules.wallClearance)) return fail('성문에 너무 가깝습니다.', {x, y, zone});
+    if ((config.field.houses || []).some(h => Math.hypot(h.x - x, h.y - y) < rules.houseClearance)) return fail('집과 겹칩니다.', {x, y, zone});
+    // Buildings may stand closer above and below each other than side by side (they are drawn in depth order).
+    const width = t => rules.footprint[t] || rules.footprint.default;
+    const occupant = p => (state.buildings || []).find(b => b.plotId === p.id)?.type;
+    if (window.plotList(state, config).some(p => Math.abs(p.y - y) < rules.rowGap &&
+      Math.abs(p.x - x) < (width(type) + width(occupant(p))) / 2))
+      return fail('다른 건물과 겹칩니다.', {x, y, zone});
+    if (stats.unique && (state.buildings || []).some(b => b.type === type)) return fail(`${stats.name}은(는) 하나만 지을 수 있습니다.`, {x, y, zone});
+    const cost = stats.cost;
+    if (Object.entries(cost).some(([key, value]) => !(state.resources[key] >= value))) return fail('자원이 부족합니다.', {x, y, zone});
+    return {ok: true, reason: '', x, y, zone};
+  };
+
+  // Open a new site where the player tapped and build on it; nothing changes if the build fails.
+  window.placeBuilding = function (state, config, type, x, y) {
+    const status = window.placementStatus(state, config, type, x, y);
+    if (!status.ok) return status;
+    const zone = status.zone;
+    state.customPlots ||= [];
+    let n = 1; while (window.findPlot(state, config, `${zone.prefix}${n}`)) n++;
+    const plot = {id: `${zone.prefix}${n}`, lane: zone.lane, x: status.x, y: status.y, allowed: [...zone.allowed], custom: true, zone: zone.id};
+    state.customPlots.push(plot);
+    const result = window.buildOnPlot(state, config, plot.id, type);
+    if (!result.ok) state.customPlots = state.customPlots.filter(p => p !== plot);
+    return {...result, plotId: result.ok ? plot.id : undefined};
+  };
+
+  // A site the player opened disappears with its building, so the zone frees up again.
+  window.dropEmptyCustomPlots = function (state) {
+    if (!state.customPlots) return;
+    state.customPlots = state.customPlots.filter(p => (state.buildings || []).some(b => b.plotId === p.id));
+  };
+})();

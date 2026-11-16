@@ -87,7 +87,7 @@
       decisionLog: [],
       research: [],
       seed: (Number(new URLSearchParams(location.search).get("seed")) || Date.now()) | 0,
-      buildings: [],
+      buildings: [], customPlots: [],
     };
     const compact = canvas.getBoundingClientRect().height <= C.camera.compactStart.maxHeight;
     const initialCamera = compact ? C.camera.compactStart : C.camera.start;

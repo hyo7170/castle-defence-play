@@ -9,7 +9,7 @@
 
   // Everything worth keeping between sessions. Battle-only data is left out:
   // a game is saved while preparing, never in the middle of a fight.
-  const KEEP = ['phase', 'wave', 'year', 'keep', 'walls', 'units', 'buildings', 'resources', 'hope', 'research',
+  const KEEP = ['phase', 'wave', 'year', 'keep', 'walls', 'units', 'buildings', 'customPlots', 'resources', 'hope', 'research',
     'decision', 'decisionLog', 'decisionSeed', 'capacityBonus', 'seed', 'kills', 'report', 'lastReward'];
   window.serializeGame = function (state) {
     if (!['ready', 'settlement', 'victory'].includes(state.phase)) return null;
@@ -30,14 +30,16 @@
       if (!Array.isArray(data.walls) || data.walls.length !== config.walls.length) return null;
       if (!data.walls.every((w, i) => w.id === config.walls[i].id && Number.isFinite(w.hp))) return null;
       if (!Array.isArray(data.units) || !data.units.every(u => config.units[u.type] && Number.isFinite(u.hp) && Number.isFinite(u.x) && Number.isFinite(u.y))) return null;
+      if (data.customPlots !== undefined && !(Array.isArray(data.customPlots) && data.customPlots.every(p => typeof p.id === 'string' &&
+        Number.isFinite(p.x) && Number.isFinite(p.y) && Array.isArray(p.allowed) && typeof p.lane === 'string'))) return null;
       if (!Array.isArray(data.buildings) || !data.buildings.every(b => config.construction.buildings[b.type] &&
-        config.construction.plots.some(p => p.id === b.plotId) && Number.isFinite(b.hp))) return null;
+        window.plotList(data, config).some(p => p.id === b.plotId) && Number.isFinite(b.hp))) return null;
       if (!data.resources || !['gold', 'wood', 'stone'].every(k => Number.isFinite(data.resources[k]) && data.resources[k] >= 0)) return null;
       if (!Number.isFinite(data.keep) || data.keep <= 0) return null;
       const state = JSON.parse(JSON.stringify(data));
       delete state.version;
       Object.assign(state, {year: state.year || 0, enemies: [], enemyDeaths: [], queue: [], timer: 0, combatRemainder: 0,
-        events: [], effects: [], kills: state.kills || 0, research: state.research || [], decisionLog: state.decisionLog || [],
+        events: [], effects: [], kills: state.kills || 0, research: state.research || [], customPlots: state.customPlots || [], decisionLog: state.decisionLog || [],
         hope: Number.isFinite(state.hope) ? state.hope : config.hope.start});
       for (const wall of state.walls) wall.max = window.wallMaxHp(config, wall);
       for (const unit of state.units) { unit.cool = 0; unit.retreat = null; unit.movement = null; }

@@ -635,6 +635,19 @@ window.CONFIG.campaign = {
   "yearScaling": {"hp": 0.3, "damage": 0.2, "count": 0.1},
   "winter": {"fallenWallFraction": 0.6, "stipend": {"gold": 300, "wood": 80, "stone": 60}}
 };
+// ---- Free placement: zones where buildings can go anywhere (fixed plots stay as well) ----
+// Zones are bounds for a building's centre. Fieldworks stay on their road sites.
+window.CONFIG.construction.placement = {"grid": 20, "rowGap": 54, "footprint": {"default": 80, "archerTower": 60, "magicTower": 60, "barracks": 84, "mercenary": 84, "smithy": 84, "arcaneLab": 84, "engineerLab": 90}, "roadClearance": 30, "keepClearance": 40, "wallClearance": 90, "houseClearance": 46};
+window.CONFIG.construction.zones = [
+  {"id": "keepyard", "name": "중앙 마당", "prefix": "C", "lane": "central", "x": 320, "y": 190, "w": 480, "h": 320,
+    "allowed": ["archerTower", "magicTower", "barracks", "repair", "hospital", "mercenary", "smithy", "arcaneLab", "engineerLab"]},
+  {"id": "southyard", "name": "남쪽 마당", "prefix": "S", "lane": "south", "x": 330, "y": 610, "w": 380, "h": 130,
+    "allowed": ["archerTower", "magicTower", "barracks", "repair", "hospital"]},
+  {"id": "eastyard", "name": "동쪽 마당", "prefix": "E", "lane": "east", "x": 940, "y": 190, "w": 210, "h": 300,
+    "allowed": ["archerTower", "magicTower", "barracks", "repair", "hospital", "smithy", "arcaneLab", "engineerLab"]},
+  {"id": "village", "name": "마을", "prefix": "V", "lane": "central", "x": 800, "y": 600, "w": 320, "h": 270,
+    "allowed": ["market", "warehouse", "hospital"]}
+];
 // The keep's guard: archers on the keep shoot the nearest enemies, so the last stand wears down gradually.
 window.CONFIG.keepGuard = {"damage": 18, "interval": 0.7, "range": 230, "volley": 2};
 // Playtest option: ?waves=2 plays a shorter game with the first N waves.

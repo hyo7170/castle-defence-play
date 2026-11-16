@@ -48,17 +48,17 @@ window.createMenuUI = function (config, getState, cam, getView, ui, toast) {
       body.append(el('span', {className: 'army-label', textContent: name}));
       const grid = el('div', {className: 'menu-grid'}); body.append(grid);
       for (const type of types) {
-        const stats = config.construction.buildings[type], free = ui.construction.eligible(type).length;
+        const stats = config.construction.buildings[type], free = ui.construction.eligible(type).length, zones = window.zonesFor(config, type);
         const affordable = Object.entries(stats.cost).every(([k, v]) => state.resources[k] >= v);
         const unique = stats.unique && state.buildings.some(b => b.type === type);
-        const status = !preparing ? {ok: false, reason: '준비 단계에만'} : unique ? {ok: false, reason: '이미 지음'} : !free ? {ok: false, reason: '빈 부지 없음'}
+        const status = !preparing ? {ok: false, reason: '준비 단계에만'} : unique ? {ok: false, reason: '이미 지음'} : !free && !zones.length ? {ok: false, reason: '빈 부지 없음'}
           : !affordable ? {ok: false, reason: `${costText(stats.cost)} · 자원 부족`} : {ok: true};
-        row(grid, `${stats.name}`, `${stats.name} 짓기`, `${costText(stats.cost)} · ${short[type]} · ${free}곳`, status, () => {
-          const plots = ui.construction.pickType(type); hide();
+        row(grid, `${stats.name}`, `${stats.name} 짓기`, `${costText(stats.cost)} · ${short[type]} · ${zones.length ? '마당 어디든' : `${free}곳`}`, status, () => {
+          const plots = [...ui.construction.pickType(type), ...zones.map(z => ({x: z.x + z.w / 2, y: z.y + z.h / 2}))]; hide();
           // Bring the nearest lit plot into view if none is on screen.
           const v = getView(), seen = plots.some(p => p.x > v.x && p.x < v.x + v.w && p.y > v.y && p.y < v.y + v.h);
           if (!seen && plots.length) { const near = [...plots].sort((a, b) => Math.hypot(a.x - cam.x, a.y - cam.y) - Math.hypot(b.x - cam.x, b.y - cam.y))[0]; cam.x = near.x; cam.y = near.y; getView(); }
-          toast(`${stats.name}: 빛나는 부지를 누르세요 (${plots.length}곳)`);
+          toast(zones.length ? `${stats.name}: 빛나는 부지나 마당 안 원하는 곳을 누르세요` : `${stats.name}: 빛나는 부지를 누르세요 (${plots.length}곳)`);
         });
       }
     }
